@@ -39,6 +39,13 @@ onMounted(async () => {
       earthCtrl?.updateSun(sunDir);
       requestAnimationFrame(animateSun);
     };
+    const myRoute: [number, number][] = [
+      [39.9, 116.], // 人民广场
+      [51.5,-0.1], // 外滩
+      [31.2351, 121.5063], // 陆家嘴
+      [31.2155, 121.5447]  // 世纪公园
+    ];
+    earthCtrl.drawSmoothPath(myRoute, "#FF5733");
     const updateRealWorldSun = () => {
       // 1. 获取实时太阳方向
       const sunDir = (earthCtrl as any).calculateSunDirection(new Date());

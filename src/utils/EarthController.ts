@@ -520,7 +520,47 @@ export class EarthController {
     // 返回以方便后续清理
     return { line, dot, observer };
   }
+public drawSmoothPath(pathData: [number, number][], color: string = "#00ff00") {
+    // 1. 增加前置守卫，确保数据存在且足够连成线
+    if (!pathData || pathData.length < 2) return;
 
+    const allPoints: BABYLON.Vector3[] = [];
+    const radius = 1.02;
+
+    for (let i = 0; i < pathData.length - 1; i++) {
+        // 2. 使用解构赋值，并加上类型保护，或者直接告诉 TS 这里肯定有值
+        const startData = pathData[i];
+        const endData = pathData[i + 1];
+
+        // 再次确认数据存在（消除 ts 2532 报错）
+        if (!startData || !endData) continue;
+
+        const start = this.latLonToVector3(startData[0], startData[1], radius);
+        const end = this.latLonToVector3(endData[0], endData[1], radius);
+
+        const distance = BABYLON.Vector3.Distance(start, end);
+        const interpolationSteps = Math.max(1, Math.floor(distance * 50));
+
+        for (let step = 0; step <= interpolationSteps; step++) {
+            const t = step / interpolationSteps;
+            // 混合 Lerp 和归一化来模拟球面路径
+            const p = BABYLON.Vector3.Lerp(start, end, t);
+            p.normalize().scaleInPlace(radius);
+            allPoints.push(p);
+        }
+    }
+
+    // 3. 检查生成的点集是否有效
+    if (allPoints.length > 0) {
+        const line = BABYLON.MeshBuilder.CreateLines(
+            "smooth_path",
+            { points: allPoints, updatable: false },
+            this.scene
+        );
+        line.color = BABYLON.Color3.FromHexString(color);
+        line.parent = this.earthMesh;
+    }
+}
   /**
    * 二阶贝塞尔曲线公式工具函数
    */
