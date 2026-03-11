@@ -45,8 +45,68 @@ export class EarthController {
     // this.drawGrid();
     // this.drawLongitudeLines();
     // this.drawLatitudeLines();
+    this.drawChinaContours()
   }
+/**
+ * 加载并绘制中国城市轮廓
+ * @param color 轮廓颜色
+ * @param opacity 细线透明度，建议不要太高，否则叠加在一起会很乱
+ */
+public async drawChinaContours(color: string = "#00ffff") {
+    const url = "https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json";
+    
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
 
+        data.features.forEach((feature: any) => {
+            const { type, coordinates } = feature.geometry;
+
+            if (type === "Polygon") {
+                // 单个闭合区域
+                coordinates.forEach((ring: [number, number][]) => {
+                    this.createContourLine(ring, color);
+                });
+            } else if (type === "MultiPolygon") {
+                // 多个闭合区域（如带岛屿的城市）
+                coordinates.forEach((polygon: [number, number][][]) => {
+                    polygon.forEach((ring: [number, number][]) => {
+                        this.createContourLine(ring, color);
+                    });
+                });
+            }
+        });
+        console.log("中国城市轮廓绘制完成");
+    } catch (error) {
+        console.error("加载轮廓数据失败:", error);
+    }
+}
+
+/**
+ * 将一组经纬度点集转换为球面线条
+ */
+private createContourLine(points: [number, number][], color: string) {
+    const vertexes: BABYLON.Vector3[] = [];
+    
+    // 轮廓半径稍高于地表 (1.005)，避免深度冲突（Z-Fighting）
+    const contourRadius = 1.005;
+
+    points.forEach((p) => {
+        // p[0] 是经度, p[1] 是纬度
+        vertexes.push(this.latLonToVector3(p[1], p[0], contourRadius));
+    });
+
+    // 创建线条
+    const line = BABYLON.MeshBuilder.CreateLines(
+        "city_contour",
+        { points: vertexes, updatable: false },
+        this.scene
+    );
+
+    line.color = BABYLON.Color3.FromHexString(color);
+    line.alpha = 0.5; // 设置半透明，视觉效果更具科技感
+    line.parent = this.earthMesh; // 随地球同步旋转
+}
   private setupShaders() {
     BABYLON.Effect.ShadersStore["earthDayNightFragmentShader"] = `
             precision highp float;
@@ -275,38 +335,30 @@ export class EarthController {
  * 根据日期计算太阳在地球坐标系中的方向向量
  * @param date 默认当前时间
  */
-    private calculateSunDirection(date: Date = new Date()): BABYLON.Vector3 {
-    // 1. 获取当天是一年中的第几天 (Day of Year)
+private calculateSunDirection(date: Date = new Date()): BABYLON.Vector3 {
+    // 1. 赤纬（纬度）保持不变
     const start = new Date(date.getFullYear(), 0, 0);
     const diff = date.getTime() - start.getTime();
     const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    // 2. 计算赤纬 (Declination) - 太阳直射点的纬度
-    // 公式大约为: 23.45 * sin(360/365 * (284 + n))
     const declination = 23.45 * Math.sin((2 * Math.PI / 365) * (dayOfYear + 284));
-    const latRad = BABYLON.Tools.ToRadians(declination);
 
-    // 3. 计算当前的经度偏移 (Longitude)
-    // UTC 0点时，太阳大约在经度 180° 附近（视具体日期波动，此处用简化模型）
-    // 核心：太阳每小时移动 15°
+    // 2. 计算太阳当前的真实经度 (Solar Longitude)
+    // UTC 12:00 时，太阳在经度 0° 附近
+    // 地球每秒自转 360/86400 度
     const utcHours = date.getUTCHours();
     const utcMinutes = date.getUTCMinutes();
     const utcSeconds = date.getUTCSeconds();
-    
     const totalSeconds = (utcHours * 3600) + (utcMinutes * 60) + utcSeconds;
-    // 计算太阳所在的经度：中午 12:00 UTC 太阳在 0° 附近
-    // 这里的 -180 是为了对齐你的纹理 0 度线
-    const lon = 180 - (totalSeconds / 86400) * 360; 
-    const lonRad = BABYLON.Tools.ToRadians(lon);
 
-    // 4. 转换为 Cartesian 坐标 (Standard Babylon Axis: Y is up)
-    // 注意：这里要匹配你 latLonToVector3 的坐标系逻辑
-    const x = Math.cos(latRad) * Math.sin(lonRad);
-    const y = Math.sin(latRad);
-    const z = Math.cos(latRad) * Math.cos(lonRad);
+    // 太阳经度计算：
+    // 当 totalSeconds = 43200 (UTC 12:00) 时，lon = 0
+    // 太阳是向西移的，所以是 (43200 - totalSeconds)
+    const sunLon = ((43200 - totalSeconds) / 86400) * 360;
 
-    return new BABYLON.Vector3(x, y, z);
-    }
+    // 3. 关键：直接调用你现有的转换函数，确保坐标系 100% 一致
+    // 使用 radius = 1 即可，因为我们要的是方向向量
+    return this.latLonToVector3(declination, sunLon, 1.0);
+}
   public drawGrid() {
     // 纬线
     for (let lat = -60; lat <= 60; lat += 30) {
