@@ -27,7 +27,7 @@ onMounted(async () => {
     );
     // earthCtrl.addMarker(39.9, 116.4, "#00ff00");
     earthCtrl.addMarker(51.5,-0.1,"#ff0000"); // 伦敦
-    // earthCtrl.addMarker(40.7, -74.0, "#0000ff");
+    earthCtrl.addMarker(40.7, -74.0, "#0000ff");
     // earthCtrl.addFlightLine(39.9, 116.4, 51.5, -0.1, "#00ff00");
     // earthCtrl.addFlightLine(39.9, 116.4, 40.7, -74.0, "#ffff00");
     // earthCtrl.addAnimatedFlightLine(39.9, 116.4, 51.5, -0.1, "#00ff00");
