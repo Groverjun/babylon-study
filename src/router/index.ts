@@ -6,6 +6,11 @@ const routes = [
     name: 'map',
     component: () => import('../views/map.vue')
   },
+  {
+    path: '/sphere',
+    name: 'sphere',
+    component: () => import('../views/sphere.vue')
+  },
 ]
 
 const router = createRouter({

@@ -8,6 +8,9 @@ export default defineConfig(({ command }) => {
     plugins: [
       vue(),
     ],
+    optimizeDeps: {
+      exclude: ['@babylonjs/core']
+    },
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url))
